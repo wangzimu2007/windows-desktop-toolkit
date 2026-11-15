@@ -6,7 +6,7 @@
 
 | 工具 | 说明 |
 |---|---|
-| `ScreenshotHotkey` | 全局截图：主屏 4K / 2K，保存并复制到剪贴板，托盘图标 |
+| `ScreenshotHotkey` | 全局截图：Ctrl+Alt+S 或 Ctrl+Alt+Insert（4K），加 Shift（2K），保存并复制到剪贴板 |
 | `WindowGuard` | 新窗口/还原窗口跑到副屏时自动移到主屏；浏览器超屏自动最大化 |
 | `BlackDisplay` | 在指定副屏盖纯黑窗口（适合小副屏/回音壁屏） |
 | `BlackOverlay` | 主屏纯黑 OLED 护屏遮罩，Esc / Ctrl+Alt+B 退出 |
@@ -38,8 +38,8 @@ dist\BlackHotkey.exe
 ### 截图
 
 ```text
-Ctrl+Alt+Insert        4K 主屏截图
-Ctrl+Alt+Shift+Insert  2K 主屏截图
+Ctrl+Alt+S / Ctrl+Alt+Insert        4K 主屏截图
+Ctrl+Alt+Shift+S / Ctrl+Alt+Shift+Insert  2K 主屏截图
 ```
 
 保存到 `图片\Screenshots`，同时复制到剪贴板。

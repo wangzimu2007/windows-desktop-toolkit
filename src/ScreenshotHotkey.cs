@@ -1,8 +1,8 @@
-﻿// ScreenshotHotkey —— Ctrl+Alt+Insert 截取主屏（纯托盘 + 消息窗口，零可见窗口）
+﻿// ScreenshotHotkey —— Ctrl+Alt+S 截取主屏（纯托盘 + 消息窗口，零可见窗口）
 //
 // 设计：
-//   - 用 RegisterHotKey 注册 Ctrl+Alt+Insert，不做键盘映射
-//   - 单独按 Insert / 其他 Insert 组合完全不受影响
+//   - 用 RegisterHotKey 注册 Ctrl+Alt+S，不做键盘映射
+//   - 75% 配列可能没有 Insert，保留 S 和 Insert 两套
 //   - 只截主屏（Screen.PrimaryScreen），避开 800x600 回音壁屏
 //   - 保存到 图片\Screenshots，同时复制到剪贴板
 //   - 截图后：白色快门闪 + 右下角缩略图提示（手机截图效果）
@@ -383,10 +383,13 @@ internal sealed class HotkeyWindow : NativeWindow
     private const int WM_HOTKEY = 0x0312;
     private const int HOTKEY_ID = 0x5343;
     private const int HOTKEY_ID2 = 0x5344;
+    private const int HOTKEY_ID3 = 0x5345;
+    private const int HOTKEY_ID4 = 0x5346;
     private const uint MOD_ALT = 0x0001;
     private const uint MOD_CONTROL = 0x0002;
     private const uint MOD_NOREPEAT = 0x4000;
     private const uint MOD_SHIFT = 0x0004;
+    private const uint VK_S = 0x53;
     private const uint VK_INSERT = 0x2D;
 
     [DllImport("user32.dll")]
@@ -396,6 +399,8 @@ internal sealed class HotkeyWindow : NativeWindow
 
     private bool registered;
     private bool registered2;
+    private bool registered3;
+    private bool registered4;
     private NotifyIcon tray;
     private ContextMenuStrip menu;
 
@@ -403,14 +408,18 @@ internal sealed class HotkeyWindow : NativeWindow
     {
         CreateHandle(new CreateParams());
         BuildTray();
-        registered = RegisterHotKey(Handle, HOTKEY_ID, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_INSERT);
-        registered2 = RegisterHotKey(Handle, HOTKEY_ID2, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, VK_INSERT);
+        registered = RegisterHotKey(Handle, HOTKEY_ID, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_S);
+        registered2 = RegisterHotKey(Handle, HOTKEY_ID2, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, VK_S);
+        registered3 = RegisterHotKey(Handle, HOTKEY_ID3, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_INSERT);
+        registered4 = RegisterHotKey(Handle, HOTKEY_ID4, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, VK_INSERT);
         Shot.Log(registered
-            ? "registered Ctrl+Alt+Insert"
+            ? "registered Ctrl+Alt+S"
             : "REGISTER FAILED (conflict or hotkey already in use), Win32=" + Marshal.GetLastWin32Error());
         Shot.Log(registered2
-            ? "registered Ctrl+Alt+Shift+Insert (2K mode)"
+            ? "registered Ctrl+Alt+Shift+S (2K mode)"
             : "2K REGISTER FAILED, Win32=" + Marshal.GetLastWin32Error());
+        Shot.Log(registered3 ? "registered Ctrl+Alt+Insert" : "Insert REGISTER FAILED");
+        Shot.Log(registered4 ? "registered Ctrl+Alt+Shift+Insert (2K mode)" : "Insert 2K REGISTER FAILED");
     }
 
     private void BuildTray()
@@ -419,7 +428,7 @@ internal sealed class HotkeyWindow : NativeWindow
         {
             tray = new NotifyIcon();
             tray.Icon = LoadTrayIcon();
-            tray.Text = "截图：Ctrl+Alt+Insert=4K / Ctrl+Alt+Shift+Insert=2K（双击立即截）";
+            tray.Text = "截图：Ctrl+Alt+S 或 Ctrl+Alt+Insert=4K / 加 Shift=2K";
             tray.Visible = true;
 
             menu = new ContextMenuStrip();
@@ -478,6 +487,8 @@ internal sealed class HotkeyWindow : NativeWindow
         {
             if (registered) UnregisterHotKey(Handle, HOTKEY_ID);
             if (registered2) UnregisterHotKey(Handle, HOTKEY_ID2);
+            if (registered3) UnregisterHotKey(Handle, HOTKEY_ID3);
+            if (registered4) UnregisterHotKey(Handle, HOTKEY_ID4);
             registered2 = false;
             registered = false;
             if (tray != null)
@@ -500,6 +511,8 @@ internal sealed class HotkeyWindow : NativeWindow
             int hkId = m.WParam.ToInt32();
             if (hkId == HOTKEY_ID) { Shot.CapturePrimary(); return; }
             if (hkId == HOTKEY_ID2) { Shot.CapturePrimary2K(); return; }
+            if (hkId == HOTKEY_ID3) { Shot.CapturePrimary(); return; }
+            if (hkId == HOTKEY_ID4) { Shot.CapturePrimary2K(); return; }
         }
         base.WndProc(ref m);
     }
