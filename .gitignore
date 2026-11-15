@@ -1,0 +1,9 @@
+dist/
+layout-backups/
+*.log
+*.png
+*.jpg
+.movie-manual-off.flag
+profiles/*.reg
+Thumbs.db
+.DS_Store
