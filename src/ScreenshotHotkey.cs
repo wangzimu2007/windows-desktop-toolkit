@@ -383,14 +383,14 @@ internal sealed class HotkeyWindow : NativeWindow
     private const int WM_HOTKEY = 0x0312;
     private const int HOTKEY_ID = 0x5343;
     private const int HOTKEY_ID2 = 0x5344;
-    private const int HOTKEY_ID3 = 0x5345;
-    private const int HOTKEY_ID4 = 0x5346;
     private const uint MOD_ALT = 0x0001;
     private const uint MOD_CONTROL = 0x0002;
-    private const uint MOD_NOREPEAT = 0x4000;
     private const uint MOD_SHIFT = 0x0004;
-    private const uint VK_S = 0x53;
-    private const uint VK_INSERT = 0x2D;
+    private const uint MOD_WIN = 0x0008;
+    private const uint MOD_NOREPEAT = 0x4000;
+    private const string Default4K = "Ctrl+Alt+Insert";
+    private const string Default2K = "Ctrl+Alt+Shift+Insert";
+    private static readonly string ConfigPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "screenshot-hotkey.ini");
 
     [DllImport("user32.dll")]
     private static extern bool RegisterHotKey(IntPtr hWnd, int id, uint fsModifiers, uint vk);
@@ -399,27 +399,95 @@ internal sealed class HotkeyWindow : NativeWindow
 
     private bool registered;
     private bool registered2;
-    private bool registered3;
-    private bool registered4;
     private NotifyIcon tray;
     private ContextMenuStrip menu;
+    private string hotkey4KText = Default4K;
+    private string hotkey2KText = Default2K;
 
     public HotkeyWindow()
     {
         CreateHandle(new CreateParams());
         BuildTray();
-        registered = RegisterHotKey(Handle, HOTKEY_ID, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_S);
-        registered2 = RegisterHotKey(Handle, HOTKEY_ID2, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, VK_S);
-        registered3 = RegisterHotKey(Handle, HOTKEY_ID3, MOD_CONTROL | MOD_ALT | MOD_NOREPEAT, VK_INSERT);
-        registered4 = RegisterHotKey(Handle, HOTKEY_ID4, MOD_CONTROL | MOD_ALT | MOD_SHIFT | MOD_NOREPEAT, VK_INSERT);
+        uint m1, k1, m2, k2;
+        LoadHotkeyConfig(out m1, out k1, out m2, out k2);
+        registered = RegisterHotKey(Handle, HOTKEY_ID, m1 | MOD_NOREPEAT, k1);
+        registered2 = RegisterHotKey(Handle, HOTKEY_ID2, m2 | MOD_NOREPEAT, k2);
         Shot.Log(registered
-            ? "registered Ctrl+Alt+S"
-            : "REGISTER FAILED (conflict or hotkey already in use), Win32=" + Marshal.GetLastWin32Error());
+            ? "registered " + hotkey4KText
+            : "REGISTER FAILED " + hotkey4KText + ", Win32=" + Marshal.GetLastWin32Error());
         Shot.Log(registered2
-            ? "registered Ctrl+Alt+Shift+S (2K mode)"
-            : "2K REGISTER FAILED, Win32=" + Marshal.GetLastWin32Error());
-        Shot.Log(registered3 ? "registered Ctrl+Alt+Insert" : "Insert REGISTER FAILED");
-        Shot.Log(registered4 ? "registered Ctrl+Alt+Shift+Insert (2K mode)" : "Insert 2K REGISTER FAILED");
+            ? "registered " + hotkey2KText + " (2K mode)"
+            : "2K REGISTER FAILED " + hotkey2KText + ", Win32=" + Marshal.GetLastWin32Error());
+        tray.Text = "截图：" + hotkey4KText + "=4K / " + hotkey2KText + "=2K";
+    }
+
+    private static void EnsureConfig()
+    {
+        if (File.Exists(ConfigPath)) return;
+        File.WriteAllText(ConfigPath,
+            "[Hotkeys]\r\n4K=" + Default4K + "\r\n2K=" + Default2K + "\r\n",
+            Encoding.UTF8);
+    }
+
+    private static string ReadConfigValue(string key)
+    {
+        EnsureConfig();
+        foreach (string raw in File.ReadAllLines(ConfigPath, Encoding.UTF8))
+        {
+            string line = raw.Trim();
+            if (line.Length == 0 || line.StartsWith("#") || line.StartsWith(";") || line.StartsWith("[")) continue;
+            int eq = line.IndexOf('=');
+            if (eq <= 0) continue;
+            if (line.Substring(0, eq).Trim().Equals(key, StringComparison.OrdinalIgnoreCase))
+                return line.Substring(eq + 1).Trim();
+        }
+        return null;
+    }
+
+    private static bool ParseHotkey(string text, out uint modifiers, out uint virtualKey)
+    {
+        modifiers = 0;
+        virtualKey = 0;
+        if (string.IsNullOrWhiteSpace(text)) return false;
+        string keyName = null;
+        foreach (string raw in text.Split('+'))
+        {
+            string part = raw.Trim();
+            if (part.Length == 0) continue;
+            string lower = part.ToLowerInvariant();
+            if (lower == "ctrl" || lower == "control") modifiers |= MOD_CONTROL;
+            else if (lower == "alt") modifiers |= MOD_ALT;
+            else if (lower == "shift") modifiers |= MOD_SHIFT;
+            else if (lower == "win" || lower == "windows") modifiers |= MOD_WIN;
+            else keyName = part;
+        }
+        if (keyName == null) return false;
+        Keys key;
+        if (!Enum.TryParse<Keys>(keyName, true, out key) || key == Keys.None) return false;
+        virtualKey = (uint)key;
+        return true;
+    }
+
+    private void LoadHotkeyConfig(out uint m1, out uint k1, out uint m2, out uint k2)
+    {
+        string t1 = ReadConfigValue("4K");
+        string t2 = ReadConfigValue("2K");
+        if (string.IsNullOrWhiteSpace(t1)) t1 = Default4K;
+        if (string.IsNullOrWhiteSpace(t2)) t2 = Default2K;
+        if (!ParseHotkey(t1, out m1, out k1))
+        {
+            Shot.Log("invalid 4K hotkey: " + t1 + ", fallback " + Default4K);
+            t1 = Default4K;
+            ParseHotkey(t1, out m1, out k1);
+        }
+        if (!ParseHotkey(t2, out m2, out k2))
+        {
+            Shot.Log("invalid 2K hotkey: " + t2 + ", fallback " + Default2K);
+            t2 = Default2K;
+            ParseHotkey(t2, out m2, out k2);
+        }
+        hotkey4KText = t1;
+        hotkey2KText = t2;
     }
 
     private void BuildTray()
@@ -428,7 +496,7 @@ internal sealed class HotkeyWindow : NativeWindow
         {
             tray = new NotifyIcon();
             tray.Icon = LoadTrayIcon();
-            tray.Text = "截图：Ctrl+Alt+S 或 Ctrl+Alt+Insert=4K / 加 Shift=2K";
+            tray.Text = "截图热键";
             tray.Visible = true;
 
             menu = new ContextMenuStrip();
@@ -487,8 +555,6 @@ internal sealed class HotkeyWindow : NativeWindow
         {
             if (registered) UnregisterHotKey(Handle, HOTKEY_ID);
             if (registered2) UnregisterHotKey(Handle, HOTKEY_ID2);
-            if (registered3) UnregisterHotKey(Handle, HOTKEY_ID3);
-            if (registered4) UnregisterHotKey(Handle, HOTKEY_ID4);
             registered2 = false;
             registered = false;
             if (tray != null)
@@ -511,13 +577,10 @@ internal sealed class HotkeyWindow : NativeWindow
             int hkId = m.WParam.ToInt32();
             if (hkId == HOTKEY_ID) { Shot.CapturePrimary(); return; }
             if (hkId == HOTKEY_ID2) { Shot.CapturePrimary2K(); return; }
-            if (hkId == HOTKEY_ID3) { Shot.CapturePrimary(); return; }
-            if (hkId == HOTKEY_ID4) { Shot.CapturePrimary2K(); return; }
         }
         base.WndProc(ref m);
     }
 }
-
 internal static class ScreenshotHotkey
 {
     [DllImport("user32.dll")]

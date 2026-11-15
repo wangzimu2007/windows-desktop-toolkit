@@ -6,7 +6,7 @@
 
 | 工具 | 说明 |
 |---|---|
-| `ScreenshotHotkey` | 全局截图：Ctrl+Alt+S 或 Ctrl+Alt+Insert（4K），加 Shift（2K），保存并复制到剪贴板 |
+| `ScreenshotHotkey` | 全局截图：默认 Ctrl+Alt+Insert（4K）/ 加 Shift（2K），可通过 ini 改键 |
 | `WindowGuard` | 新窗口/还原窗口跑到副屏时自动移到主屏；浏览器超屏自动最大化 |
 | `BlackDisplay` | 在指定副屏盖纯黑窗口（适合小副屏/回音壁屏） |
 | `BlackOverlay` | 主屏纯黑 OLED 护屏遮罩，Esc / Ctrl+Alt+B 退出 |
@@ -38,11 +38,31 @@ dist\BlackHotkey.exe
 ### 截图
 
 ```text
-Ctrl+Alt+S / Ctrl+Alt+Insert        4K 主屏截图
-Ctrl+Alt+Shift+S / Ctrl+Alt+Shift+Insert  2K 主屏截图
+Ctrl+Alt+Insert        4K 主屏截图
+Ctrl+Alt+Shift+Insert  2K 主屏截图
 ```
 
 保存到 `图片\Screenshots`，同时复制到剪贴板。
+
+### 修改截图热键
+
+把 `screenshot-hotkey.ini.example` 重命名为 `screenshot-hotkey.ini`，和 exe 放同目录：
+
+```ini
+[Hotkeys]
+4K=Ctrl+Alt+Insert
+2K=Ctrl+Alt+Shift+Insert
+```
+
+支持组合示例：
+
+```text
+Ctrl+Alt+F12
+Ctrl+Alt+Shift+F12
+Alt+PrintScreen
+```
+
+修改后重启 `ScreenshotHotkey.exe`。没有 Insert 的 75% 键盘可以改成 `Ctrl+Alt+F12`。
 
 ### 多屏窗口
 
