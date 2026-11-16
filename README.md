@@ -84,6 +84,12 @@ Esc / Ctrl+Alt+B  退出遮罩
 
 播放期间还会调用 `SetThreadExecutionState` 临时阻止屏保和显示器休眠；退出 PotPlayer 后自动释放，不改全局电源/屏保设置。
 
+如果播放中仍然几分钟黑屏，先检查显示器自身的 OLED Care：
+
+- ASUS OLED 的 `Neo Proximity Sensor`：检测不到人时会在 5/10/15 分钟后直接黑屏，和键鼠操作无关。
+- Windows 屏保：本脚本播放期间会抑制，退出后恢复系统设置。
+- BlackOverlay：如果黑屏时按 Esc 能恢复，是遮罩被误拉起；本版已改为按进程判断，避免窗口标题抖动误判。
+
 把 `MovieMaskWatcher.ps1` 设为开机启动：
 
 ```powershell

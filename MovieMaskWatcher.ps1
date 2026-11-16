@@ -58,9 +58,8 @@ Write-Log '主屏 OLED 遮罩自动检测启动（5 分钟延迟恢复）'
 $wasPlaying = $false
 $graceUntil = $null
 while ($true) {
-    $players = Get-Process -Name 'PotPlayerMini64','PotPlayer64' -ErrorAction SilentlyContinue | Where-Object {
-        $_.MainWindowTitle -and $_.MainWindowTitle -notmatch '参数选项|设置|Preferences'
-    }
+    # 只按进程判断，避免全屏/切渲染器时 MainWindowTitle 短暂为空导致误判退出
+    $players = Get-Process -Name 'PotPlayerMini64','PotPlayer64' -ErrorAction SilentlyContinue
     $isPlaying = [bool]$players
     if ($isPlaying) {
         Keep-Awake
