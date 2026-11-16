@@ -8,6 +8,16 @@ public static class MovieMaskAwake {
     public const uint ES_CONTINUOUS = 0x80000000;
     public const uint ES_SYSTEM_REQUIRED = 0x00000001;
     public const uint ES_DISPLAY_REQUIRED = 0x00000002;
+    [StructLayout(LayoutKind.Sequential)]
+    public struct LASTINPUTINFO { public uint cbSize; public uint dwTime; }
+    [DllImport("user32.dll")]
+    public static extern bool GetLastInputInfo(ref LASTINPUTINFO plii);
+    public static uint IdleSeconds() {
+        LASTINPUTINFO info = new LASTINPUTINFO();
+        info.cbSize = (uint)Marshal.SizeOf(info);
+        if (!GetLastInputInfo(ref info)) return 0;
+        return ((uint)Environment.TickCount - info.dwTime) / 1000;
+    }
     public static bool Keep() {
         return SetThreadExecutionState(ES_CONTINUOUS | ES_SYSTEM_REQUIRED | ES_DISPLAY_REQUIRED) != 0;
     }
@@ -22,6 +32,7 @@ $pidFile = Join-Path $dir '.movie-mask-watch.pid'
 $exe = Join-Path $dir 'BlackOverlay.exe'
 if (-not (Test-Path -LiteralPath $exe)) { $exe = Join-Path (Join-Path $dir 'dist') 'BlackOverlay.exe' }
 $graceSeconds = 300
+$idleRestoreSeconds = 300
 $manualFlag = Join-Path $dir '.movie-manual-off.flag'
 function Write-Log($msg) {
     Add-Content -LiteralPath $log -Value ((Get-Date -Format 'yyyy-MM-dd HH:mm:ss') + ' ' + $msg) -Encoding UTF8
@@ -52,9 +63,9 @@ function Mask-On {
     if (-not (Get-Process -Name 'BlackOverlay' -ErrorAction SilentlyContinue)) {
         Start-Process -FilePath $exe -WorkingDirectory $dir -ErrorAction SilentlyContinue
     }
-    Write-Log 'PotPlayer 退出满 5 分钟：主屏 OLED 遮罩已恢复'
+    Write-Log '系统空闲满 5 分钟：主屏 OLED 遮罩已恢复'
 }
-Write-Log '主屏 OLED 遮罩自动检测启动（5 分钟延迟恢复）'
+Write-Log '主屏 OLED 遮罩自动检测启动（播放结束且系统空闲满 5 分钟才恢复）'
 $wasPlaying = $false
 $graceUntil = $null
 while ($true) {
@@ -65,21 +76,29 @@ while ($true) {
         Keep-Awake
         if (-not $wasPlaying) { if (Test-Path -LiteralPath $manualFlag) { Remove-Item -LiteralPath $manualFlag -Force -ErrorAction SilentlyContinue }; Mask-Off }
         elseif (Get-Process -Name 'BlackOverlay' -ErrorAction SilentlyContinue) { Mask-Off }
+        $pendingRestore = $false
         $graceUntil = $null
     } else {
         Release-Awake
         if ($wasPlaying) {
             if (Test-Path -LiteralPath $manualFlag) { Remove-Item -LiteralPath $manualFlag -Force -ErrorAction SilentlyContinue }
+            $pendingRestore = $true
             $graceUntil = (Get-Date).AddSeconds($graceSeconds)
-            Write-Log 'PotPlayer 已退出：5 分钟后恢复主屏遮罩'
-        } elseif ($graceUntil -and (Get-Date) -ge $graceUntil) {
-            if (Test-Path -LiteralPath $manualFlag) {
-                Remove-Item -LiteralPath $manualFlag -Force -ErrorAction SilentlyContinue
-                Write-Log '手动关闭仍有效：跳过本次自动恢复'
+            Write-Log 'PotPlayer 已退出：至少 5 分钟后，且系统空闲满 5 分钟才恢复遮罩'
+        } elseif ($pendingRestore -and $graceUntil -and (Get-Date) -ge $graceUntil) {
+            $idle = [MovieMaskAwake]::IdleSeconds()
+            if ($idle -lt $idleRestoreSeconds) {
+                $graceUntil = (Get-Date).AddSeconds(30)
             } else {
-                Mask-On
+                if (Test-Path -LiteralPath $manualFlag) {
+                    Remove-Item -LiteralPath $manualFlag -Force -ErrorAction SilentlyContinue
+                    Write-Log '手动关闭仍有效：跳过本次自动恢复'
+                } else {
+                    Mask-On
+                }
+                $pendingRestore = $false
+                $graceUntil = $null
             }
-            $graceUntil = $null
         }
     }
     $wasPlaying = $isPlaying

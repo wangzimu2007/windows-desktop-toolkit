@@ -11,7 +11,7 @@
 | `BlackDisplay` | 在指定副屏盖纯黑窗口（适合小副屏/回音壁屏） |
 | `BlackOverlay` | 主屏纯黑 OLED 护屏遮罩，Esc / Ctrl+Alt+B 退出 |
 | `BlackHotkey` | `Ctrl+Alt+Shift+B` 启动 BlackOverlay |
-| `MovieMaskWatcher` | PotPlayer 播放时自动关闭主屏遮罩，并临时阻止屏保/显示器休眠；退出 5 分钟后恢复 |
+| `MovieMaskWatcher` | PotPlayer 播放时自动关闭主屏遮罩，并临时阻止屏保/显示器休眠；退出且系统空闲 5 分钟后恢复 |
 | `DesktopLayoutBackup` | 备份/恢复桌面图标布局 |
 | `MadVRProfileSwitch` | 可选：按 profile 切换 madVR 配置（需自备 .reg） |
 
@@ -82,7 +82,7 @@ Esc / Ctrl+Alt+B  退出遮罩
 
 ### PotPlayer 自动遮罩与防黑屏
 
-播放期间还会调用 `SetThreadExecutionState` 临时阻止屏保和显示器休眠；退出 PotPlayer 后自动释放，不改全局电源/屏保设置。
+播放期间还会调用 `SetThreadExecutionState` 临时阻止屏保和显示器休眠；退出 PotPlayer 后自动释放。只有退出满 5 分钟且系统连续空闲 5 分钟，才恢复 BlackOverlay，避免用户还在操作时被黑屏盖住。
 
 如果播放中仍然几分钟黑屏，先检查显示器自身的 OLED Care：
 
